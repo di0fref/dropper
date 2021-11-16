@@ -34,8 +34,19 @@ const options = {
 
 app.use(cors(options));
 
+app.get("/notes/count", (req, res) => {
+	db.query("SELECT count(*) as count from notes", (err, result) => {
+		if (err) {
+			console.log(err);
+		} else {
+			console.log(result);
+			res.send(result);
+		} 
+	});
+});
+
 app.get("/notes", (req, res) => {
-	db.query("SELECT * FROM notes", (err, result) => {
+	db.query("SELECT * FROM notes order by date_modified desc", (err, result) => {
 		if (err) {
 			console.log(err);
 		} else {
@@ -65,7 +76,6 @@ app.get("/notes/:id", (req, res) => {
 });
 
 app.put("/notes/update/:id", (req, res) => {
-	console.log(req.body);
 	db.query("UPDATE notes set title = ?, text = ? where id = ?", [req.body.title, req.body.text, req.params.id], (err, result) => {
 		if (err) {
 			console.log(err);
@@ -75,11 +85,31 @@ app.put("/notes/update/:id", (req, res) => {
 	});
 });
 
+app.post("/notes/create", (req, res) => {
+	db.query("INSERT into notes (id, title, text, date_modified, category_id) values (?,?,?,?,?)", [req.body.id, req.body.title, req.body.text, req.body.date_modified, req.body.category_id], (err, result) => {
+		if (err) {
+			console.log(err);
+		} else {
+			console.log(result);
+			res.send(result);
+		}
+	});
+});
 
+
+app.get("/categories/count", (req, res) => {
+	db.query("SELECT count(*) as count from categories", (err, result) => {
+		if (err) {
+			console.log(err);
+		} else {
+			res.send(result);
+		}
+	});
+});
 
 
 app.get("/categories", (req, res) => {
-	db.query("SELECT * FROM categories", (err, result) => {
+	db.query("SELECT c.id as id, c.title, count(n.id) as count FROM categories c left join notes n on n.category_id = c.id group by title, id", (err, result) => {
 		if (err) {
 			console.log(err);
 		} else {

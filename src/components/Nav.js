@@ -3,8 +3,8 @@ import { useEffect, useState } from "react/cjs/react.development";
 import CategoryService from "../service/CategoryService";
 import { FaRegFolder, FaInbox, FaPlusCircle } from "react-icons/fa";
 import Modal from "react-modal";
-
-// Modal.setAppElement("#sidebar")
+import NotesService from "../service/NotesService";
+import ReactTooltip from "react-tooltip";
 
 function Nav(props) {
 	const customStyles = {
@@ -23,47 +23,58 @@ function Nav(props) {
 		},
 	};
 
-	const [data, setData] = useState();
 	const [id, setActive] = useState("allnotes");
 	const [menu, setMenu] = useState([]);
 	const [newBookName, setNewBookName] = useState("");
 	const [modalIsOpen, setIsOpen] = useState(false);
 	const [bookSubmitted, setBookSubmitted] = useState(false);
+	const [totalNotes, setTotalNotes] = useState(false);
 
-
-	
 	function openModal() {
 		setIsOpen(true);
 	}
 
 	function closeModal() {
 		setIsOpen(false);
-		setBookSubmitted(false)
+		setBookSubmitted(false);
 	}
 
 	useEffect(() => {
+		NotesService.count()
+			.then((result) => {
+				setTotalNotes(result.data[0].count);
+			})
+			.catch((err) => {
+				console.log(err);
+			});
 		CategoryService.getAll()
 			.then((result) => {
-
 				setMenu([
 					{
 						id: "allnotes",
 						text: "All notes",
-						icon: <FaInbox className="h-4 w-4" />,
+						icon: (
+							<FaInbox className="h-4 w-4 fill-current text-gray-500" />
+						),
 						link: true,
 						submenu: [],
+						count: totalNotes,
 					},
 					{
 						id: "noteboks",
 						text: "Notebooks",
-						icon: <FaRegFolder className="h-4 w-4" />,
+						icon: (
+							<FaRegFolder className="h-4 w-4 fill-current text-gray-500" />
+						),
 						link: false,
 						submenu: result.data,
+						count: 0,
 						actionIcon: {
+							tooltip: "Create notebook", 
 							icon: (
 								<FaPlusCircle
 									onClick={openModal}
-									className="cursor-pointer hover:text-green-500"
+									className="cursor-pointer hover:text-gray-500 w-4 h-4"
 								/>
 							),
 						},
@@ -73,7 +84,9 @@ function Nav(props) {
 			.catch((err) => {
 				console.log(err);
 			});
-	}, [bookSubmitted]);
+			ReactTooltip.rebuild();
+
+	}, [bookSubmitted, props.noteSubmitted]);
 
 	const onClick = (id) => {
 		setActive(id);
@@ -81,22 +94,23 @@ function Nav(props) {
 
 	const newBookSubmit = (e) => {
 		e.preventDefault();
-		CategoryService.create({name: newBookName}).then((result) => {
-			console.log(result);
-			CategoryService.getAll().then((result) => {
-				setBookSubmitted(true)
-				// closeModal()
-			}).catch((err) => {
-				
+		CategoryService.create({ name: newBookName })
+			.then((result) => {
+				CategoryService.getAll()
+					.then((result) => {
+						setBookSubmitted(true);
+						closeModal();
+					})
+					.catch((err) => {});
+			})
+			.catch((err) => {
+				console.log(err);
 			});
-		}).catch((err) => {
-			console.log(err);
-		});
-	}
+	};
 
 	const modalOnChange = (e) => {
 		setNewBookName(e.target.value);
-	}
+	};
 	return (
 		<nav className="text-sm">
 			<h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
@@ -108,31 +122,29 @@ function Nav(props) {
 					<div key={item.id}>
 						{item.link ? (
 							<Link
-								to={"/"}
+								key={"note-" + item.id}
 								id={"note-" + item.id}
 								onClick={(e) => {
 									props.clickHandler(e, item.id);
 									onClick(item.id);
 								}}
+								to="/"
 								className={
-									item.id === id
-										? "mt-2 -mx-3 px-3 py-1 flex items-center justify-between text-sm font-medium rounded-lg bg-gray-800"
-										: "mt-2 -mx-3 px-3 py-1 flex items-center justify-between text-sm font-medium rounded-lg text-gray-50"
+									item.id === id 
+									? "mt-2 -mx-3 px-3 py-2 flex items-center justify-between text-sm font-medium bg-gray-200 rounded-lg"
+									: "mt-2 -mx-3 px-3 py-2 flex items-center justify-between text-sm font-medium hover:bg-gray-200 rounded-lg"
 								}
 							>
-								<span className="flex items-center">
+								<span className="inline-flex align-baseline">
 									<span className="leading-normal">
 										{item.icon}
 									</span>
-									<span className="ml-2 text-gray-500">
+									<span className="ml-2 text-gray-700">
 										{item.text}
 									</span>
 								</span>
-								<span className="w-10 t py-1 text-xs font-medium rounded-full text-gray-700 bg-gray-300_">
-									<span className="float-right text-gray-300">
-										{item.actionIcon &&
-											item.actionIcon.icon}
-									</span>
+								<span className="w-10 text-center py-1 text-xs font-semibold rounded-full text-gray-700 bg-gray-300">
+									{totalNotes}
 								</span>
 							</Link>
 						) : (
@@ -147,13 +159,14 @@ function Nav(props) {
 								</span>
 								<span className="w-10 t py-1 text-xs font-medium rounded-full text-gray-700 bg-gray-300_">
 									<span className="float-right text-gray-300">
-										<Link
+										<button
 											to={"/"}
 											onClick={item.actionIcon.onClick}
+											data-tip={item.actionIcon.tooltip}
 										>
 											{item.actionIcon &&
 												item.actionIcon.icon}
-										</Link>
+										</button>
 									</span>
 								</span>
 							</div>
@@ -161,21 +174,36 @@ function Nav(props) {
 						{item.submenu.map((subitem) => {
 							return (
 								<Link
-									id={"cat-" + subitem.id}
-									className={
-										subitem.id === id
-											? "px-8 mt-2 -mx-3 px-3 py-1 flex items-center justify-between text-sm font-medium rounded-lg bg-gray-800"
-											: "px-8 mt-2 -mx-3 px-3 py-1 flex items-center justify-between text-sm font-medium"
-									}
-									to={"/"} //block mt-2 py-2 px-5
-									key={subitem.id}
-									onClick={(e) => {
-										onClick(subitem.id);
-										props.clickHandler(e, subitem.id);
-									}}
-								>
-									{subitem.title}
-								</Link>
+								id={"note-" + subitem.id}
+								key={"note-" + subitem.id}
+								onClick={(e) => {
+									props.clickHandler(e, subitem.id);
+									onClick(subitem.id);
+								}}
+								to="/"
+								className={
+									subitem.id === id 
+									? "mt-2 -mx-3 px-3 py-2 flex items-center justify-between text-xs font-medium bg-gray-200 rounded-lg"
+									: "mt-2 -mx-3 px-3 py-2 flex items-center justify-between text-xs font-medium hover:bg-gray-200 rounded-lg"
+								}
+							>
+								<span className="inline-flex align-baseline">
+									<span className="leading-normal">
+										{/* {item.icon} */}
+									</span>
+									<span className="ml-2 text-gray-700">
+										{subitem.title}
+									</span>
+								</span>
+								{subitem.count !== 0 ? (
+									<span className="w-10 text-center py-1 text-xs font-semibold rounded-full text-gray-700 bg-gray-300">
+										{subitem.count}
+									</span>
+								):(
+									null
+								)
+						}
+							</Link>
 							);
 						})}
 					</div>
@@ -206,10 +234,16 @@ function Nav(props) {
 									/>
 								</div>
 
-								<button type="submit" className="float-right w-20 mt-6 rounded text-sm bg-button-blue font-medium py-2 rounded-md ml-2">
+								<button
+									type="submit"
+									className="float-right w-20 mt-6 rounded text-sm bg-button-blue font-medium py-2 rounded-md ml-2"
+								>
 									Create
 								</button>
-								<button onClick={closeModal} className="float-right w-20 mt-6 rounded text-sm bg-gray-500 font-medium py-2 rounded-md ">
+								<button
+									onClick={closeModal}
+									className="float-right w-20 mt-6 rounded text-sm bg-gray-500 font-medium py-2 rounded-md "
+								>
 									Cancel
 								</button>
 							</div>

@@ -8,7 +8,9 @@ class CategoryService {
   get(id) {
     return http.get(`/categories/get/${id}`);
   }
-
+  count() {
+    return http.get(`/categories/count`);
+  }
   create(data) {
     return http.post("/categories/create", data);
   }

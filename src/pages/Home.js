@@ -13,7 +13,6 @@ function Home(props) {
 	const [notes, setNotes] = useState([]);
 	const [categoryId, setCategoryId] = useState("allnotes");
 
-
 	useEffect(() => {
 		getAllNotes();
 	}, []);
@@ -22,7 +21,9 @@ function Home(props) {
 		e.preventDefault();
 		setNoteId(key);
 	};
-
+	const noteCreated = (key) => {
+		setNoteId(key);
+	};
 	const getAllNotes = () => {
 		NotesService.getAll()
 			.then((result) => {
@@ -50,14 +51,15 @@ function Home(props) {
 
 	const sidebarClicked = (e, id) => {
 		setCategoryId(id);
-		id === "allnotes" ? getAllNotes() : getNotesByCategory(id);
+		id === "allnotes" 
+			? getAllNotes() 
+			: getNotesByCategory(id);
 	};
-
 	return (
 		<div className="wrapper">
 			{/* <Header /> */}
-			<Sidebar clickHandler={sidebarClicked}/>
-			<Notes noteClicked={noteClicked} data={notes} />
+			<Sidebar clickHandler={sidebarClicked} noteSubmitted={noteId}/>
+			<Notes noteClicked={noteClicked} notes={notes} onNoteCreated={noteCreated} categoryId={categoryId} />
 			<Main id={noteId} onDone={onFocusOut} />
 		</div>
 	);
